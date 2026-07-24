@@ -30,21 +30,6 @@ write_state() {
   mv "$tmp" "$STATE_FILE"
 }
 
-classify_pretooluse() {
-  local tool="$1" cmd="$2"
-  case "$tool" in
-    Edit|Write|MultiEdit) echo "editing" ;;
-    Bash)
-      if echo "$cmd" | grep -qiE '\b(test|vitest|jest|pytest|npm[[:space:]]+test|pnpm[[:space:]]+test|yarn[[:space:]]+test|cargo[[:space:]]+test|go[[:space:]]+test)\b'; then
-        echo "testing"
-      else
-        echo "working"
-      fi
-      ;;
-    *) echo "working" ;;
-  esac
-}
-
 # Walk up the process tree from this script's parent looking for the actual
 # `claude` CLI process, rather than assuming a fixed hop count — hook
 # commands may or may not go through an intermediate shell depending on how
@@ -65,14 +50,12 @@ find_claude_pid() {
 }
 
 case "$EVENT" in
+  prompt)
+    write_state "editing" ""
+    ;;
   pre)
     TOOL=$(json_get "d.get('tool_name', '?')")
-    CMD=$(json_get "d.get('tool_input', {}).get('command', '')")
-    write_state "$(classify_pretooluse "$TOOL" "$CMD")" "$TOOL"
-    ;;
-  post)
-    TOOL=$(json_get "d.get('tool_name', '?')")
-    write_state "idle" "$TOOL"
+    write_state "editing" "$TOOL"
     ;;
   fail)
     TOOL=$(json_get "d.get('tool_name', '?')")

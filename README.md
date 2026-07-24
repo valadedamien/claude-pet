@@ -4,7 +4,7 @@ Un petit compagnon flottant qui réagit en temps réel à l'activité de [Claude
 
 macOS (Apple Silicon) uniquement pour l'instant.
 
-<p align="center"><img src="assets/demo.gif" alt="Aperçu des 7 états de Claude Pet" width="260"></p>
+<p align="center"><img src="assets/demo.gif" alt="Aperçu des états de Claude Pet" width="260"></p>
 
 *(GIF généré directement depuis `src/pet.html`, micro-animations incluses — pas une vraie capture d'écran, mais fidèle au rendu réel.)*
 
@@ -31,7 +31,7 @@ Retire uniquement les hooks ajoutés par Claude Pet, ferme les fenêtres actives
 ## Fonctionnement
 
 - **Un pet par conversation** : chaque session `claude` a sa propre fenêtre, sa propre couleur (parmi une palette de 6), positionnée en cascade pour ne pas se superposer. Fermeture automatique (propre via `SessionEnd`, ou via un filet de sécurité qui vérifie toutes les ~3s que le process `claude` parent est toujours vivant) si la session se termine, même brutalement.
-- **7 états** : au repos, occupé, en train d'écrire, en train de tester, en attente (permission), erreur, terminé — déclenchés par les hooks `PreToolUse`/`PostToolUse`/`PostToolUseFailure`/`Notification`/`Stop`.
+- **5 états** : au repos (`SessionStart`, puis à nouveau après un "terminé" resté inactif), en train d'écrire (`UserPromptSubmit` puis `PreToolUse` — reste actif pendant tout le tour, pas de retour au repos entre deux outils), en attente de confirmation (`PermissionRequest`), erreur (`PostToolUseFailure`), terminé (`Stop`).
 - **Clic pour retrouver le terminal** : cliquer sur le pet ramène au premier plan l'application (Terminal, iTerm, VS Code...) qui a lancé cette session.
 - Design pixel-art conçu avec Claude Design, implémenté en SVG/CSS/JS pur (pas de dépendance de rendu).
 

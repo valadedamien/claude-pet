@@ -12,8 +12,9 @@ SESSIONS_DIR = os.path.expanduser("~/.claude/pet/sessions")
 HTML_FILE = os.path.expanduser("~/.claude/pet/pet.html")
 
 POLL_INTERVAL = 0.3
-DONE_TIMEOUT = 15
-SAD_TIMEOUT = 8
+MIN_DISPLAY_SECONDS = 0.4  # floor so a fast state change (e.g. waiting -> editing
+                           # on an instant permission approval) stays visible
+DONE_TIMEOUT = 15  # "done" auto-reverts to idle after this many seconds of no activity
 WATCHDOG_EVERY = 10  # check claude liveness every N poll ticks (~3s)
 
 BASE_X, BASE_Y = 60, 60
@@ -61,8 +62,26 @@ def poll_loop(window, session_id, skin):
     claude_pid_file = os.path.join(SESSIONS_DIR, f"claude_{session_id}.pid")
 
     last_pushed = None
+    last_push_time = 0.0
     skin_sent = False
     ticks = 0
+
+    def resolved_state():
+        state, tool, ts = read_state(state_file)
+        idle_for = time.time() - ts if ts else 0
+        if state == "done" and idle_for > DONE_TIMEOUT:
+            state = "idle"
+        return state, tool
+
+    def push(state, tool):
+        nonlocal last_pushed, last_push_time
+        try:
+            window.evaluate_js(f"window.setPetState({json.dumps(state)}, {json.dumps(tool or '')})")
+        except Exception:
+            pass
+        last_pushed = (state, tool)
+        last_push_time = time.time()
+
     while True:
         ticks += 1
         if ticks % WATCHDOG_EVERY == 0 and not claude_still_alive(claude_pid_file):
@@ -80,23 +99,14 @@ def poll_loop(window, session_id, skin):
             except Exception:
                 pass
 
-        state, tool, ts = read_state(state_file)
-        idle_for = time.time() - ts if ts else 0
-
-        if state == "done" and idle_for > DONE_TIMEOUT:
-            state = "idle"
-        if state == "sad" and idle_for > SAD_TIMEOUT:
-            state = "idle"
-
-        payload = (state, tool)
-        if payload != last_pushed:
-            safe_tool = json.dumps(tool or "")
-            safe_state = json.dumps(state)
-            try:
-                window.evaluate_js(f"window.setPetState({safe_state}, {safe_tool})")
-            except Exception:
-                pass
-            last_pushed = payload
+        state, tool = resolved_state()
+        if (state, tool) != last_pushed:
+            elapsed = time.time() - last_push_time
+            if elapsed < MIN_DISPLAY_SECONDS:
+                time.sleep(MIN_DISPLAY_SECONDS - elapsed)
+                state, tool = resolved_state()  # pick up whatever's current once the floor has passed
+            if (state, tool) != last_pushed:
+                push(state, tool)
 
         time.sleep(POLL_INTERVAL)
 

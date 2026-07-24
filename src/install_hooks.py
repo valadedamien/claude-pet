@@ -13,10 +13,10 @@ MARKER = "/.claude/pet/update_state.sh"
 
 # Maps each Claude Code hook event to the update_state.sh argument it should fire.
 HOOK_EVENTS = {
+    "UserPromptSubmit": "prompt",
     "PreToolUse": "pre",
-    "PostToolUse": "post",
     "PostToolUseFailure": "fail",
-    "Notification": "waiting",
+    "PermissionRequest": "waiting",
     "Stop": "done",
     "SessionStart": "start",
     "SessionEnd": "end",
