@@ -4,7 +4,7 @@ Un petit compagnon flottant qui réagit en temps réel à l'activité de [Claude
 
 macOS (Apple Silicon) uniquement pour l'instant.
 
-![Aperçu des 7 états de Claude Pet](assets/demo.gif)
+<p align="center"><img src="assets/demo.gif" alt="Aperçu des 7 états de Claude Pet" width="260"></p>
 
 *(GIF généré directement depuis `src/pet.html`, micro-animations incluses — pas une vraie capture d'écran, mais fidèle au rendu réel.)*
 
@@ -61,7 +61,3 @@ gh release create v0.x.0 build/dist/Claude-Pet-macos-arm64.zip --title "..." --n
 ```
 
 `install.sh` télécharge toujours la **dernière** release, donc les collègues récupèrent la mise à jour au prochain `git pull` + `./install.sh`.
-
-### Pourquoi py2app et pas PyInstaller
-
-PyInstaller compile bien `pet_app.py`, mais la fenêtre pywebview n'apparaît jamais une fois le binaire "frozen" (aucune erreur, la fenêtre Cocoa n'est simplement jamais créée) — testé en onefile, en `.app` exécuté directement, et via `open`. py2app, spécifique à macOS et pensé pour les apps pyobjc, fonctionne du premier coup. Le build doit se faire dans un venv qui **n'a pas** PyInstaller installé à côté : le scanner statique de py2app trébuche sur les hooks PyInstaller embarqués par pywebview (`build/build.sh` s'occupe de tout ça dans un venv isolé).
