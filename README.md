@@ -1,12 +1,12 @@
 # Claude Pet
 
-Un petit compagnon flottant qui réagit en temps réel à l'activité de [Claude Code](https://claude.com/claude-code) : un personnage pixel-art dans une fenêtre native, toujours au-dessus, qui change d'expression et d'animation selon ce que fait Claude (édition, tests, attente, erreur, terminé...).
+A small floating companion that reacts in real time to [Claude Code](https://claude.com/claude-code)'s activity: a pixel-art character in a native, always-on-top window, changing expression and animation based on what Claude is doing (editing, waiting, error, done...).
 
-macOS (Apple Silicon) uniquement pour l'instant.
+macOS (Apple Silicon) only for now.
 
-<p align="center"><img src="assets/demo.gif" alt="Aperçu des états de Claude Pet" width="260"></p>
+<p align="center"><img src="assets/demo.gif" alt="Preview of Claude Pet's states" width="260"></p>
 
-*(GIF généré directement depuis `src/pet.html`, micro-animations incluses — pas une vraie capture d'écran, mais fidèle au rendu réel.)*
+*(GIF generated directly from `src/pet.html`, micro-animations included — not a real screen recording, but faithful to the actual rendering.)*
 
 ## Installation
 
@@ -16,48 +16,48 @@ cd claude-pet
 ./install.sh
 ```
 
-`install.sh` copie les fichiers dans `~/.claude/pet/`, télécharge le binaire précompilé (dernière [Release GitHub](https://github.com/valadedamien/claude-pet/releases/latest)) — **aucune dépendance Python à installer pour faire tourner l'app elle-même**, seul `python3` (déjà présent sur la plupart des Mac de dev) est requis pour les petits scripts de hooks. Les hooks nécessaires sont ajoutés à `~/.claude/settings.json` **sans toucher à tes hooks existants** (fusion idempotente, backup automatique avant modification).
+`install.sh` copies the files into `~/.claude/pet/`, downloads the precompiled binary (latest [GitHub Release](https://github.com/valadedamien/claude-pet/releases/latest)) — **no Python dependency to install to run the app itself**, only `python3` (already present on most dev Macs) is required for the small hook scripts. The necessary hooks are added to `~/.claude/settings.json` **without touching your existing hooks** (idempotent merge, automatic backup before any change).
 
-Ouvre (ou relance) `claude` dans un terminal : le pet apparaît automatiquement.
+Open (or restart) `claude` in a terminal: the pet appears automatically.
 
-## Désinstallation
+## Uninstallation
 
 ```bash
 ./uninstall.sh
 ```
 
-Retire uniquement les hooks ajoutés par Claude Pet, ferme les fenêtres actives, et supprime `~/.claude/pet/`.
+Removes only the hooks added by Claude Pet, closes any active windows, and deletes `~/.claude/pet/`.
 
-## Fonctionnement
+## How it works
 
-- **Un pet par conversation** : chaque session `claude` a sa propre fenêtre, sa propre couleur (parmi une palette de 6), positionnée en cascade pour ne pas se superposer. Fermeture automatique (propre via `SessionEnd`, ou via un filet de sécurité qui vérifie toutes les ~3s que le process `claude` parent est toujours vivant) si la session se termine, même brutalement.
-- **5 états** : au repos (`SessionStart`, puis à nouveau après un "terminé" resté inactif), en train d'écrire (`UserPromptSubmit` puis `PreToolUse` — reste actif pendant tout le tour, pas de retour au repos entre deux outils), en attente de confirmation (`PermissionRequest`), erreur (`PostToolUseFailure`), terminé (`Stop`).
-- **Clic pour retrouver le terminal** : cliquer sur le pet ramène au premier plan l'application (Terminal, iTerm, VS Code...) qui a lancé cette session.
-- Design pixel-art conçu avec Claude Design, implémenté en SVG/CSS/JS pur (pas de dépendance de rendu).
+- **One pet per conversation**: each `claude` session gets its own window, its own color (out of a palette of 6), positioned in a cascade so they don't overlap. Automatic closing (clean via `SessionEnd`, or via a safety net that checks every ~3s that the parent `claude` process is still alive) if the session ends, even abruptly.
+- **5 states**: idle (`SessionStart`, then again after a "done" left inactive), working (`UserPromptSubmit` then `PreToolUse` — stays active for the whole turn, no reverting to idle between two tools), waiting for confirmation (`PermissionRequest`), error (`PostToolUseFailure`), done (`Stop`).
+- **Click to find the terminal**: clicking the pet brings to the front the application (Terminal, iTerm, VS Code...) that launched this session.
+- Pixel-art design made with Claude Design, implemented in plain SVG/CSS/JS (no rendering dependency).
 
-## Structure du projet
+## Project structure
 
 ```
-install.sh          # copie les fichiers, télécharge le binaire (Release), ajoute les hooks
-uninstall.sh         # retire les hooks, ferme les pets, supprime ~/.claude/pet
+install.sh          # copies the files, downloads the binary (Release), adds the hooks
+uninstall.sh         # removes the hooks, closes the pets, deletes ~/.claude/pet
 src/
-  pet.html            # rendu (SVG + CSS + JS), état piloté par window.setPetState/setPetSkin
-  pet_app.py           # fenêtre pywebview, un process par session, watchdog, clic → focus
-  update_state.sh      # appelé par les hooks Claude Code, écrit l'état par session
-  start_pet.sh          # lance l'app compilée pour une session donnée
-  install_hooks.py      # fusion idempotente des hooks dans settings.json
+  pet.html            # rendering (SVG + CSS + JS), state driven by window.setPetState/setPetSkin
+  pet_app.py           # pywebview window, one process per session, watchdog, click → focus
+  update_state.sh      # called by Claude Code hooks, writes state per session
+  start_pet.sh          # launches the compiled app for a given session
+  install_hooks.py      # idempotent merge of hooks into settings.json
 build/
-  setup.py              # config py2app pour compiler src/pet_app.py
+  setup.py              # py2app config to compile src/pet_app.py
   build.sh               # build + zip → build/dist/Claude-Pet-macos-arm64.zip
 ```
 
-Pour ajuster le design (couleurs, formes, textes des états), tout se passe dans `src/pet.html` (objet `STATES` en JS, blocs SVG `<g data-only="...">`). `pet.html` est copié tel quel par `install.sh`, donc pas besoin de recompiler pour ce fichier — relance juste `./install.sh`.
+To tweak the design (colors, shapes, state labels), everything happens in `src/pet.html` (the `STATES` object in JS, the SVG `<g data-only="...">` blocks). `pet.html` is copied as-is by `install.sh`, so there's no need to recompile for this file — just rerun `./install.sh`.
 
-Pour modifier `pet_app.py` (logique Python : sessions, watchdog, clic → focus...), il faut recompiler et publier une nouvelle release :
+To modify `pet_app.py` (Python logic: sessions, watchdog, click → focus...), you need to rebuild and publish a new release:
 
 ```bash
-./build/build.sh                          # produit build/dist/Claude-Pet-macos-arm64.zip
+./build/build.sh                          # produces build/dist/Claude-Pet-macos-arm64.zip
 gh release create v0.x.0 build/dist/Claude-Pet-macos-arm64.zip --title "..." --notes "..."
 ```
 
-`install.sh` télécharge toujours la **dernière** release, donc les collègues récupèrent la mise à jour au prochain `git pull` + `./install.sh`.
+`install.sh` always downloads the **latest** release, so colleagues get the update on their next `git pull` + `./install.sh`.
