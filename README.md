@@ -4,6 +4,10 @@ Un petit compagnon flottant qui réagit en temps réel à l'activité de [Claude
 
 macOS (Apple Silicon) uniquement pour l'instant.
 
+![Aperçu des 7 états de Claude Pet](assets/demo.gif)
+
+*(GIF généré directement depuis `src/pet.html`, micro-animations incluses — pas une vraie capture d'écran, mais fidèle au rendu réel.)*
+
 ## Installation
 
 ```bash
