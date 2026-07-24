@@ -172,47 +172,6 @@
             <path d="M 115 68 L 97 78 L 115 88 L 115 80 L 107 78 L 115 76 Z" fill="#1A1A1A"></path>
           </g>
 
-          <!-- screen -->
-          <rect x="40" y="115" width="80" height="30" fill="#1A1A1A"></rect>
-          <rect id="screen-inner" x="45" y="120" width="70" height="20" fill="#2E2E2E"></rect>
-
-          <g data-only="idle">
-            <rect x="55" y="124" width="5" height="5" fill="#1A1A1A" style="animation: pxFade 1.6s steps(1) infinite;"></rect>
-            <rect x="65" y="119" width="4" height="4" fill="#1A1A1A" style="animation: pxFade 1.6s steps(1) infinite 0.3s;"></rect>
-            <rect x="73" y="115" width="3" height="3" fill="#1A1A1A" style="animation: pxFade 1.6s steps(1) infinite 0.6s;"></rect>
-          </g>
-          <g data-only="working">
-            <rect x="50" y="125" width="25" height="3" fill="#1A1A1A"></rect>
-            <rect x="50" y="131" width="40" height="3" fill="#1A1A1A"></rect>
-            <rect x="50" y="137" width="15" height="3" fill="#1A1A1A" style="animation: pxBlink 0.5s steps(1) infinite;"></rect>
-          </g>
-          <g data-only="editing">
-            <rect x="50" y="126" width="45" height="4" fill="#1A1A1A" style="animation: pxGrow 1.2s steps(1) infinite; transform-origin: 50px 128px;"></rect>
-            <rect x="100" y="122" width="6" height="6" fill="#1A1A1A"></rect>
-            <rect x="98" y="128" width="10" height="3" fill="#1A1A1A"></rect>
-          </g>
-          <g data-only="testing">
-            <rect x="48" y="128" width="64" height="8" fill="none" stroke="#1A1A1A" stroke-width="2"></rect>
-            <rect x="50" y="130" width="40" height="4" fill="#1A1A1A" style="animation: pxGrow 0.8s steps(1) infinite; transform-origin: 50px 132px;"></rect>
-          </g>
-          <g data-only="waiting">
-            <rect x="70" y="122" width="6" height="12" fill="#1A1A1A" style="animation: pxBlink 0.9s steps(1) infinite;"></rect>
-            <rect x="84" y="122" width="6" height="12" fill="#1A1A1A" style="animation: pxBlink 0.9s steps(1) infinite 0.2s;"></rect>
-          </g>
-          <g data-only="sad">
-            <rect x="52" y="122" width="6" height="6" fill="#1A1A1A"></rect>
-            <rect x="60" y="128" width="6" height="6" fill="#1A1A1A"></rect>
-            <rect x="60" y="122" width="6" height="6" fill="#1A1A1A"></rect>
-            <rect x="52" y="128" width="6" height="6" fill="#1A1A1A"></rect>
-          </g>
-          <g data-only="done">
-            <rect x="58" y="130" width="5" height="5" fill="#1A1A1A"></rect>
-            <rect x="63" y="135" width="5" height="5" fill="#1A1A1A"></rect>
-            <rect x="68" y="130" width="5" height="5" fill="#1A1A1A"></rect>
-            <rect x="73" y="125" width="5" height="5" fill="#1A1A1A"></rect>
-            <rect x="78" y="120" width="5" height="5" fill="#1A1A1A"></rect>
-          </g>
-
           <g data-only="waiting">
             <rect x="112" y="35" width="10" height="10" fill="#3B82F6" style="animation: pxTwinkle 1s steps(1) infinite;"></rect>
           </g>
@@ -226,19 +185,18 @@
 
 <script>
   const STATES = {
-    idle:    { label: "REPOS",   color: "#A3A3A3", badgeText: "#1A1A1A", screenBg: "#2E2E2E", anim: "pet-idle" },
-    working: { label: "OCCUPÉ",  color: "#38BDF8", badgeText: "#1A1A1A", screenBg: "#38BDF8", anim: "pet-working" },
-    editing: { label: "EDITING", color: "#F97316", badgeText: "#FFFFFF", screenBg: "#FDE4CB", anim: "pet-editing" },
-    testing: { label: "TESTING", color: "#EF4444", badgeText: "#FFFFFF", screenBg: "#FCD9D9", anim: "pet-testing" },
-    waiting: { label: "ATTENTE", color: "#3B82F6", badgeText: "#FFFFFF", screenBg: "#DCEAFE", anim: "pet-waiting" },
-    sad:     { label: "ERREUR",  color: "#64748B", badgeText: "#FFFFFF", screenBg: "#FBDADA", anim: "pet-sad" },
-    done:    { label: "DONE !",  color: "#22C55E", badgeText: "#FFFFFF", screenBg: "#D7F7DC", anim: "pet-done" },
+    idle:    { label: "REPOS",   color: "#A3A3A3", badgeText: "#1A1A1A", anim: "pet-idle" },
+    working: { label: "OCCUPÉ",  color: "#38BDF8", badgeText: "#1A1A1A", anim: "pet-working" },
+    editing: { label: "EDITING", color: "#F97316", badgeText: "#FFFFFF", anim: "pet-editing" },
+    testing: { label: "TESTING", color: "#EF4444", badgeText: "#FFFFFF", anim: "pet-testing" },
+    waiting: { label: "ATTENTE", color: "#3B82F6", badgeText: "#FFFFFF", anim: "pet-waiting" },
+    sad:     { label: "ERREUR",  color: "#64748B", badgeText: "#FFFFFF", anim: "pet-sad" },
+    done:    { label: "DONE !",  color: "#22C55E", badgeText: "#FFFFFF", anim: "pet-done" },
   };
 
   const animGroup = document.getElementById("anim-group");
   const badge = document.getElementById("badge");
   const badgeArrow = document.getElementById("badge-arrow");
-  const screenInner = document.getElementById("screen-inner");
   const toolCaption = document.getElementById("tool-caption");
   const onlyEls = document.querySelectorAll("[data-only]");
 
@@ -262,7 +220,6 @@
       badge.style.background = s.color;
       badge.style.color = s.badgeText;
       badgeArrow.style.background = s.color;
-      screenInner.setAttribute("fill", s.screenBg);
     }
 
     toolCaption.textContent = tool || "";
