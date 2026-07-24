@@ -20,6 +20,42 @@ cd claude-pet
 
 Open (or restart) `claude` in a terminal: the pet appears automatically.
 
+### Disclaimer: what `install.sh` actually changes on your machine
+
+Being upfront about this since it touches your Claude Code configuration:
+
+1. Copies `pet.html`, `update_state.sh`, `start_pet.sh` into `~/.claude/pet/`, and downloads/unzips the compiled `pet_app.app` from the latest GitHub Release into that same folder.
+2. Backs up your current `~/.claude/settings.json` to `~/.claude/settings.json.claude-pet-backup-<timestamp>.json` (only if that file already exists).
+3. Merges 8 hook entries into `~/.claude/settings.json`'s `"hooks"` object — one per event in the table in [How it works](#how-it-works). Each entry is tagged by containing the literal string `~/.claude/pet/update_state.sh` in its command, which is how `uninstall.sh` (or re-running `install.sh`) finds and removes only *these* entries later, leaving any other hooks you already had (on the same event or others) untouched.
+
+Nothing else is modified: no other files under `~/.claude/`, no shell profile, no global npm/pip packages, no telemetry or network calls beyond the one download in step 1.
+
+#### Doing it by hand instead
+
+If you'd rather not run `install.sh` at all, or want to review every change first:
+
+1. Copy `src/pet.html`, `src/update_state.sh`, `src/start_pet.sh` to `~/.claude/pet/` yourself (`chmod +x` the two scripts), and download/unzip `Claude-Pet-macos-arm64.zip` from the [latest release](https://github.com/valadedamien/claude-pet/releases/latest) into `~/.claude/pet/pet_app.app`.
+2. Add this to the `"hooks"` object in `~/.claude/settings.json` — if you already have entries for any of these events, append these objects to that event's existing array rather than replacing it:
+
+   ```json
+   {
+     "hooks": {
+       "UserPromptSubmit":    [{ "hooks": [{ "type": "command", "command": "~/.claude/pet/update_state.sh prompt",  "async": true }] }],
+       "PreToolUse":          [{ "hooks": [{ "type": "command", "command": "~/.claude/pet/update_state.sh pre",     "async": true }] }],
+       "PostToolUse":         [{ "hooks": [{ "type": "command", "command": "~/.claude/pet/update_state.sh post",    "async": true }] }],
+       "PostToolUseFailure":  [{ "hooks": [{ "type": "command", "command": "~/.claude/pet/update_state.sh fail",    "async": true }] }],
+       "PermissionRequest":   [{ "hooks": [{ "type": "command", "command": "~/.claude/pet/update_state.sh waiting", "async": true }] }],
+       "Stop":                [{ "hooks": [{ "type": "command", "command": "~/.claude/pet/update_state.sh done",    "async": true }] }],
+       "SessionStart":        [{ "hooks": [{ "type": "command", "command": "~/.claude/pet/update_state.sh start",   "async": true }] }],
+       "SessionEnd":          [{ "hooks": [{ "type": "command", "command": "~/.claude/pet/update_state.sh end",     "async": true }] }]
+     }
+   }
+   ```
+
+3. Open (or restart) `claude`. You can skip any event you don't care about (e.g. drop `PermissionRequest` if you never want the "waiting" state) — each one is independent.
+
+`uninstall.sh` will still find and remove these later since it matches on the `update_state.sh` path in the command string, not on how they got there.
+
 ## Uninstallation
 
 ```bash
