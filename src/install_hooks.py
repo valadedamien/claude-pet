@@ -15,6 +15,7 @@ MARKER = "/.claude/pet/update_state.sh"
 HOOK_EVENTS = {
     "UserPromptSubmit": "prompt",
     "PreToolUse": "pre",
+    "PostToolUse": "post",
     "PostToolUseFailure": "fail",
     "PermissionRequest": "waiting",
     "Stop": "done",

@@ -12,7 +12,7 @@ SESSIONS_DIR = os.path.expanduser("~/.claude/pet/sessions")
 HTML_FILE = os.path.expanduser("~/.claude/pet/pet.html")
 
 POLL_INTERVAL = 0.3
-MIN_DISPLAY_SECONDS = 0.4  # floor so a fast state change (e.g. waiting -> editing
+MIN_DISPLAY_SECONDS = 1.2  # floor so a fast state change (e.g. waiting -> editing
                            # on an instant permission approval) stays visible
 DONE_TIMEOUT = 15  # "done" auto-reverts to idle after this many seconds of no activity
 WATCHDOG_EVERY = 10  # check claude liveness every N poll ticks (~3s)
