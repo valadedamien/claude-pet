@@ -9,7 +9,7 @@ echo "==> Retrait des hooks Claude Code"
 python3 "$REPO_DIR/src/install_hooks.py" uninstall "$SETTINGS"
 
 echo "==> Fermeture des pets actifs"
-pkill -f "pet_app.py --session" 2>/dev/null || true
+pkill -f "pet_app.app/Contents/MacOS/pet_app --session" 2>/dev/null || true
 
 echo "==> Suppression de $PET_DIR"
 rm -rf "$PET_DIR"
