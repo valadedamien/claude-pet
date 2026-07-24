@@ -23,6 +23,21 @@ cd "$BUILD_DIR"
 rm -rf build dist
 "$VENV_DIR/bin/python3" setup.py py2app
 
+echo "==> Nettoyage des chemins locaux dans Info.plist"
+# py2app records the build venv's own interpreter path (an absolute path
+# under this machine's home directory) in PythonInfoDict.PythonExecutable —
+# purely informational metadata, unused at runtime, but it leaks the local
+# username/folder structure into a binary that gets publicly distributed.
+/usr/libexec/PlistBuddy -c "Set :PythonInfoDict:PythonExecutable python3" dist/pet_app.app/Contents/Info.plist
+
+# Every bundled module's .pyc cache also embeds the absolute build path as
+# its recorded source filename (for tracebacks) — same leak, much wider
+# blast radius (hundreds of files, including third-party deps). Every one
+# ships its .py source right next to the cache, so deleting is safe: Python
+# recompiles on first import, baking in only the *installing* user's own
+# path from then on, never this machine's.
+find dist/pet_app.app -type d -name "__pycache__" -exec rm -rf {} +
+
 echo "==> Compression"
 cd dist
 rm -f Claude-Pet-macos-arm64.zip
