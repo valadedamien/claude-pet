@@ -6,10 +6,163 @@ import os
 import subprocess
 import time
 
+import AppKit
 import webview
+from PyObjCTools import AppHelper
+from webview.platforms.cocoa import BrowserView
+
+
+def _accepts_first_mouse(self, event):
+    # Without this, a click on the pet while it isn't the active app only
+    # focuses the window (NSView's default acceptsFirstMouse is NO) instead of
+    # also delivering the mouseDown that easy_drag needs to start the drag, so
+    # dragging would take two clicks: one to focus, one to actually move it.
+    return True
+
+
+BrowserView.WebKitHost.acceptsFirstMouse_ = _accepts_first_mouse
+
+HIT_ALPHA_THRESHOLD = 16  # 0-255; pixels this transparent or more let clicks pass through
+
+
+class ClickThroughController:
+    """Lets clicks pass through the fully-transparent pixels of the frameless
+    pet window (the badge overhang, the margins around the sprite) to
+    whatever's behind it, instead of the whole rectangular window swallowing
+    every click just because it's technically the window's bounds.
+
+    NSView.hitTest_ returning nil only stops OUR view from claiming a point —
+    it doesn't make the window server route the click through to the window
+    behind us. The actual mechanism is NSWindow.ignoresMouseEvents, toggled
+    live: a global NSEvent monitor sees mouseMoved events when the cursor is
+    over one of our (currently pass-through) transparent pixels — global
+    monitors only see events *not* addressed to our own app, which is exactly
+    what happens while ignoresMouseEvents is on — and a local monitor sees
+    them once the cursor re-enters an opaque pixel and events start being
+    addressed to us again. Both paths sample a cached alpha snapshot of the
+    last rendered frame to decide which side of the threshold the cursor is
+    currently on.
+    """
+
+    def __init__(self, window):
+        self.pywebview_window = window
+        self.ns_window = None
+        self.webview = None
+        self.alpha_rep = None
+        self.alpha_size = (0, 0)
+        self._monitors = []
+
+    def install(self):
+        if not self.pywebview_window.events.shown.wait(10):
+            return
+        bv = BrowserView.instances.get(self.pywebview_window.uid)
+        if bv is None:
+            return
+        self.ns_window = bv.window
+        self.webview = bv.webview
+        self.ns_window.setAcceptsMouseMovedEvents_(True)
+        mask = AppKit.NSEventMaskMouseMoved
+        self._monitors.append(
+            AppKit.NSEvent.addLocalMonitorForEventsMatchingMask_handler_(mask, self._on_move)
+        )
+        self._monitors.append(
+            AppKit.NSEvent.addGlobalMonitorForEventsMatchingMask_handler_(mask, self._on_move)
+        )
+        self.request_snapshot()
+
+    def request_snapshot(self):
+        if self.webview is None:
+            return
+        AppHelper.callAfter(self._take_snapshot)
+
+    def _take_snapshot(self):
+        def done(image, error):
+            if image is None:
+                return
+            rep = AppKit.NSBitmapImageRep.imageRepWithData_(image.TIFFRepresentation())
+            if rep is None:
+                return
+            self.alpha_rep = rep
+            self.alpha_size = (rep.pixelsWide(), rep.pixelsHigh())
+
+        try:
+            self.webview.takeSnapshotWithConfiguration_completionHandler_(None, done)
+        except Exception:
+            pass
+
+    def _on_move(self, event):
+        self._update_passthrough()
+        return event
+
+    def _update_passthrough(self):
+        if self.ns_window is None or self.alpha_rep is None:
+            return
+        frame = self.ns_window.frame()
+        if frame.size.width <= 0 or frame.size.height <= 0:
+            return
+        screen_point = AppKit.NSEvent.mouseLocation()
+        local_x = screen_point.x - frame.origin.x
+        local_y_from_bottom = screen_point.y - frame.origin.y
+        if not (0 <= local_x < frame.size.width and 0 <= local_y_from_bottom < frame.size.height):
+            self.ns_window.setIgnoresMouseEvents_(True)
+            return
+
+        # WebKitHost is a flipped view (origin top-left, y down), and the
+        # cached bitmap's rows run top-down too, so flip the bottom-up
+        # window-frame y before sampling it.
+        view_y = frame.size.height - local_y_from_bottom
+
+        rep_w, rep_h = self.alpha_size
+        if rep_w <= 0 or rep_h <= 0:
+            return
+        px = min(max(int(local_x * rep_w / frame.size.width), 0), rep_w - 1)
+        py = min(max(int(view_y * rep_h / frame.size.height), 0), rep_h - 1)
+        color = self.alpha_rep.colorAtX_y_(px, py)
+        alpha = int(color.alphaComponent() * 255) if color is not None else 0
+        self.ns_window.setIgnoresMouseEvents_(alpha < HIT_ALPHA_THRESHOLD)
+
 
 SESSIONS_DIR = os.path.expanduser("~/.claude/pet/sessions")
 HTML_FILE = os.path.expanduser("~/.claude/pet/pet.html")
+CONFIG_FILE = os.path.expanduser("~/.claude/pet/config.json")
+
+BASE_WIDTH, BASE_HEIGHT = 170, 235  # extra height leaves room for the settings popup above the badge
+HIDDEN_WIDTH, HIDDEN_HEIGHT = 170, 100  # collapsed size: just the badge row + skin dot (+ popup room)
+SCALE_STEPS = [0.75, 0.9, 1.0, 1.15, 1.3, 1.5]
+DEFAULT_SCALE_INDEX = SCALE_STEPS.index(1.0)
+
+
+def window_size_for(hidden, scale_index):
+    # The pet's CSS transform: scale() grows/shrinks the badge+controls along
+    # with the character, in both normal and hidden mode — the window has to
+    # scale by the same factor or it clips at larger sizes (hidden mode has
+    # no character to make room for by shrinking, so this bit it hardest).
+    scale = SCALE_STEPS[scale_index]
+    if hidden:
+        return round(HIDDEN_WIDTH * scale), round(HIDDEN_HEIGHT * scale)
+    return round(BASE_WIDTH * scale), round(BASE_HEIGHT * scale)
+
+
+def read_config():
+    try:
+        with open(CONFIG_FILE) as f:
+            data = json.load(f)
+    except (FileNotFoundError, ValueError, TypeError, json.JSONDecodeError, OSError):
+        data = {}
+    scale_index = data.get("scale_index", DEFAULT_SCALE_INDEX)
+    if not isinstance(scale_index, int) or not (0 <= scale_index < len(SCALE_STEPS)):
+        scale_index = DEFAULT_SCALE_INDEX
+    hidden = bool(data.get("hidden", False))
+    return scale_index, hidden
+
+
+def write_config(scale_index, hidden):
+    try:
+        with open(CONFIG_FILE, "w") as f:
+            json.dump({"scale_index": scale_index, "hidden": hidden}, f)
+    except OSError:
+        pass
+
 
 POLL_INTERVAL = 0.3
 MIN_DISPLAY_SECONDS = 1.2  # floor so a fast state change (e.g. waiting -> editing
@@ -57,13 +210,17 @@ def cleanup(session_id):
             pass
 
 
-def poll_loop(window, session_id, skin):
+def poll_loop(window, session_id, skin, scale, hidden, click_through):
     state_file = os.path.join(SESSIONS_DIR, f"state_{session_id}.json")
     claude_pid_file = os.path.join(SESSIONS_DIR, f"claude_{session_id}.pid")
+
+    click_through.install()
 
     last_pushed = None
     last_push_time = 0.0
     skin_sent = False
+    scale_sent = False
+    hidden_sent = False
     ticks = 0
 
     def resolved_state():
@@ -79,6 +236,7 @@ def poll_loop(window, session_id, skin):
             window.evaluate_js(f"window.setPetState({json.dumps(state)}, {json.dumps(tool or '')})")
         except Exception:
             pass
+        click_through.request_snapshot()
         last_pushed = (state, tool)
         last_push_time = time.time()
 
@@ -96,6 +254,20 @@ def poll_loop(window, session_id, skin):
             try:
                 window.evaluate_js(f"window.setPetSkin({json.dumps(skin)})")
                 skin_sent = True
+            except Exception:
+                pass
+
+        if not scale_sent:
+            try:
+                window.evaluate_js(f"window.setPetScale({json.dumps(scale)})")
+                scale_sent = True
+            except Exception:
+                pass
+
+        if not hidden_sent:
+            try:
+                window.evaluate_js(f"window.setPetHidden({json.dumps(hidden)})")
+                hidden_sent = True
             except Exception:
                 pass
 
@@ -166,8 +338,15 @@ def focus_pid(pid):
 
 
 class Api:
-    def __init__(self, session_id):
+    def __init__(self, session_id, scale_index, hidden):
         self.session_id = session_id
+        self.scale_index = scale_index
+        self.hidden = hidden
+        # Set by main() once the window/click-through controller exist — Api
+        # has to be constructed before create_window() so it can be passed in
+        # as js_api, before either of those objects exist yet.
+        self.window = None
+        self.click_through = None
 
     def focus_terminal(self):
         claude_pid_file = os.path.join(SESSIONS_DIR, f"claude_{self.session_id}.pid")
@@ -179,6 +358,57 @@ class Api:
         app_pid = find_owning_app_pid(claude_pid)
         if app_pid:
             focus_pid(app_pid)
+
+    def request_snapshot(self):
+        if self.click_through is not None:
+            self.click_through.request_snapshot()
+
+    def _resize_window_to(self, width, height):
+        window = self.window
+
+        def _apply():
+            bv = BrowserView.instances.get(window.uid)
+            if bv is None:
+                return
+            ns_window = bv.window
+            frame = ns_window.frame()
+            new_frame = AppKit.NSMakeRect(
+                frame.origin.x - (width - frame.size.width) / 2,
+                frame.origin.y - (height - frame.size.height) / 2,
+                width,
+                height,
+            )
+            ns_window.setFrame_display_(new_frame, True)
+
+        AppHelper.callAfter(_apply)
+
+    def resize_pet(self, delta):
+        new_index = min(max(self.scale_index + delta, 0), len(SCALE_STEPS) - 1)
+        if new_index == self.scale_index:
+            return
+        self.scale_index = new_index
+        write_config(self.scale_index, self.hidden)
+
+        scale = SCALE_STEPS[new_index]
+        width, height = window_size_for(self.hidden, new_index)
+        self._resize_window_to(width, height)
+        self.window.evaluate_js(f"window.setPetScale({json.dumps(scale)})")
+        if self.click_through is not None:
+            self.click_through.request_snapshot()
+
+    def set_pet_hidden(self, hidden):
+        hidden = bool(hidden)
+        if hidden == self.hidden:
+            return
+        self.hidden = hidden
+        write_config(self.scale_index, self.hidden)
+
+        width, height = window_size_for(hidden, self.scale_index)
+        self._resize_window_to(width, height)
+
+        self.window.evaluate_js(f"window.setPetHidden({json.dumps(hidden)})")
+        if self.click_through is not None:
+            self.click_through.request_snapshot()
 
 
 def main():
@@ -196,14 +426,20 @@ def main():
     x, y = cascade_position(slot)
     skin = skin_color(slot)
 
+    scale_index, hidden = read_config()
+    scale = SCALE_STEPS[scale_index]
+    width, height = window_size_for(hidden, scale_index)
+
+    api = Api(session_id, scale_index, hidden)
+
     # Unique title per window: macOS remembers/cascades window frames keyed
     # by title, which fights our explicit x/y for same-titled windows.
     window = webview.create_window(
         f"Claude Pet {session_id[:8]}",
         HTML_FILE,
-        js_api=Api(session_id),
-        width=140,
-        height=195,
+        js_api=api,
+        width=width,
+        height=height,
         x=x,
         y=y,
         resizable=False,
@@ -213,7 +449,10 @@ def main():
         transparent=True,
     )
 
-    webview.start(poll_loop, (window, session_id, skin))
+    click_through = ClickThroughController(window)
+    api.window = window
+    api.click_through = click_through
+    webview.start(poll_loop, (window, session_id, skin, scale, hidden, click_through))
 
 
 if __name__ == "__main__":

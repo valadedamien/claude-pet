@@ -16,6 +16,7 @@
     -webkit-user-select: none;
   }
   #wrap {
+    position: relative;
     width: 100%;
     height: 100%;
     display: flex;
@@ -27,13 +28,20 @@
     position: relative;
     width: 120px;
     margin-top: 26px;
+    transform-origin: center;
     --skin-color: #D37B5E;
   }
+  /* The badge centers itself over the pet exactly like before the settings
+     button existed — #controls/#extra-controls are absolutely positioned
+     off of it, so they never add to its box and never shift its center. */
   #badge {
     position: absolute;
     top: -22px;
     left: 50%;
     transform: translateX(-50%);
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
     border: 2px solid #1A1A1A;
     padding: 4px 10px;
     font-family: "Courier New", monospace;
@@ -42,6 +50,75 @@
     white-space: nowrap;
     box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.15);
     z-index: 2;
+  }
+  /* Stretches to the badge's own height (top/bottom against the badge's
+     box), so the gear button always matches the badge's height regardless
+     of how tall the badge itself renders. The -2px top/bottom offsets pull
+     it out past the badge's own 2px border, since top:0/bottom:0 alone only
+     reaches the inside edge of that border (the padding box), not the
+     visible outer edge. */
+  #controls {
+    position: absolute;
+    top: -2px;
+    bottom: -2px;
+    left: 100%;
+    margin-left: 6px;
+  }
+  #btn-gear {
+    height: 100%;
+    width: 20px;
+  }
+  /* Opens above the badge as a horizontal row overlay, right-anchored to the
+     gear button (its own trigger) instead of centered over the whole badge —
+     it never pushes the badge, the gear, or the window size around, open or
+     closed. */
+  #extra-controls {
+    display: none;
+    position: absolute;
+    bottom: 100%;
+    right: 0;
+    margin-bottom: 4px;
+    flex-direction: row;
+    gap: 3px;
+  }
+  #extra-controls.expanded {
+    display: flex;
+  }
+  #btn-hide, #btn-shrink, #btn-grow {
+    height: 20px;
+  }
+  #btn-gear, #btn-hide {
+    font-size: 15px;
+  }
+  .resize-btn {
+    width: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #1A1A1A;
+    background: #FFFFFF;
+    color: #1A1A1A;
+    font-family: "Courier New", monospace;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+    padding: 0;
+    cursor: pointer;
+    box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.15);
+  }
+  #skin-dot {
+    display: none;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--skin-color);
+    border: 1px solid rgba(0, 0, 0, 0.3);
+    flex: none;
+  }
+  /* Only needed to tell pets apart once the character (which normally
+     carries the skin color) is hidden. */
+  #wrap.hidden-mode #skin-dot {
+    display: block;
   }
   #badge-arrow {
     position: absolute;
@@ -56,15 +133,39 @@
   }
   svg { display: block; overflow: visible; }
 
-  #tool-caption {
-    color: #888;
-    font-size: 10px;
-    margin-top: 4px;
-    height: 12px;
-  }
-
   #anim-group { transform-box: fill-box; transform-origin: center; }
   .skin { fill: var(--skin-color); }
+
+  /* Feature 3: hide the character, keep just the state badge (+ skin dot) */
+  #wrap.hidden-mode svg,
+  #wrap.hidden-mode #badge-arrow {
+    display: none;
+  }
+  #wrap.hidden-mode #stage {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 0;
+    /* #stage's 120px width fits just the badge fine, but badge+gear (which
+       only joins the row in hidden mode) is wider and would get squeezed to
+       fit that 120px otherwise. */
+    width: auto;
+  }
+  /* position:relative (not static): #controls/#extra-controls are
+     positioned off of #badge (so they never affect the badge's own
+     centering above the pet in normal mode) — #badge must stay a
+     containing block for that even while flowing normally here. The
+     margin-right reserves the same room #controls occupies (its absolute
+     overlay doesn't take up any actual layout space on its own), so the
+     badge+gear pair as a visual whole ends up centered by #stage instead of
+     just the badge itself with the gear hanging off one side of center. */
+  #wrap.hidden-mode #badge {
+    position: relative;
+    top: 0;
+    left: auto;
+    transform: none;
+    margin-right: 32px;
+  }
 
   @keyframes pxFloat { 0%,50% { transform: translateY(0); } 51%,100% { transform: translateY(-4px); } }
   @keyframes pxLean { 0%,50% { transform: rotate(-3deg) translateY(0); } 51%,100% { transform: rotate(-3deg) translateY(2px); } }
@@ -84,7 +185,18 @@
 <div id="wrap">
   <div id="stage">
     <div id="badge-arrow"></div>
-    <div id="badge">IDLE</div>
+    <div id="badge">
+      <span id="skin-dot"></span>
+      <span id="badge-label">IDLE</span>
+      <div id="controls">
+        <button class="resize-btn" id="btn-gear" type="button">&#9881;</button>
+        <div id="extra-controls">
+          <button class="resize-btn" id="btn-hide" type="button">&#8857;</button>
+          <button class="resize-btn" id="btn-shrink" type="button">&minus;</button>
+          <button class="resize-btn" id="btn-grow" type="button">+</button>
+        </div>
+      </div>
+    </div>
     <svg viewBox="0 0 160 190" width="120" height="142">
       <defs>
         <filter id="outline" x="-50%" y="-50%" width="200%" height="200%">
@@ -155,7 +267,6 @@
       </g>
     </svg>
   </div>
-  <div id="tool-caption"></div>
 </div>
 
 <script>
@@ -168,14 +279,15 @@
   };
 
   const animGroup = document.getElementById("anim-group");
+  const wrap = document.getElementById("wrap");
   const badge = document.getElementById("badge");
+  const badgeLabel = document.getElementById("badge-label");
   const badgeArrow = document.getElementById("badge-arrow");
-  const toolCaption = document.getElementById("tool-caption");
   const onlyEls = document.querySelectorAll("[data-only]");
 
   let currentState = null;
 
-  function setState(state, tool) {
+  function setState(state) {
     const key = STATES[state] ? state : "idle";
     const s = STATES[key];
 
@@ -189,13 +301,11 @@
         el.style.display = list.includes(key) ? "" : "none";
       });
 
-      badge.textContent = s.label;
+      badgeLabel.textContent = s.label;
       badge.style.background = s.color;
       badge.style.color = s.badgeText;
       badgeArrow.style.background = s.color;
     }
-
-    toolCaption.textContent = tool || "";
   }
 
   const stage = document.getElementById("stage");
@@ -204,13 +314,63 @@
     if (hexColor) stage.style.setProperty("--skin-color", hexColor);
   }
 
+  function setScale(scale) {
+    if (scale) stage.style.transform = `scale(${scale})`;
+  }
+
+  let isHidden = false;
+  function setHidden(hidden) {
+    isHidden = !!hidden;
+    wrap.classList.toggle("hidden-mode", isHidden);
+  }
+
   window.setPetState = setState;
   window.setPetSkin = setSkin;
+  window.setPetScale = setScale;
+  window.setPetHidden = setHidden;
   setState("idle", "");
 
   window.addEventListener("pywebviewready", () => {
-    document.body.addEventListener("click", () => {
-      window.pywebview.api.focus_terminal();
+    const extraControls = document.getElementById("extra-controls");
+    document.getElementById("btn-gear").addEventListener("click", (e) => {
+      e.stopPropagation();
+      extraControls.classList.toggle("expanded");
+      // The click-through pass-through mask (feature 1) is only refreshed
+      // on Python-driven state/scale/hide changes — this popup is a purely
+      // client-side class toggle, so without this the mask stays stale and
+      // reads the just-revealed buttons as transparent, letting clicks on
+      // them pass straight through instead of registering.
+      window.pywebview.api.request_snapshot();
+    });
+    document.getElementById("btn-hide").addEventListener("click", (e) => {
+      e.stopPropagation();
+      window.pywebview.api.set_pet_hidden(!isHidden);
+    });
+    document.getElementById("btn-shrink").addEventListener("click", (e) => {
+      e.stopPropagation();
+      window.pywebview.api.resize_pet(-1);
+    });
+    document.getElementById("btn-grow").addEventListener("click", (e) => {
+      e.stopPropagation();
+      window.pywebview.api.resize_pet(1);
+    });
+
+    let downX = 0, downY = 0;
+    document.body.addEventListener("mousedown", (e) => {
+      // screenX/Y (absolute desktop position), not clientX/Y: easy_drag moves
+      // the window along with the cursor, so clientX/Y (relative to the
+      // viewport) barely changes during a drag — the viewport is dragging
+      // right along with the pointer that's supposedly moving across it.
+      downX = e.screenX;
+      downY = e.screenY;
+    });
+    document.body.addEventListener("click", (e) => {
+      // Only treat this as a real click (and steal focus back to the
+      // terminal) if the pointer barely moved between mousedown and mouseup —
+      // otherwise this was a window drag, not a click.
+      if (Math.hypot(e.screenX - downX, e.screenY - downY) < 4) {
+        window.pywebview.api.focus_terminal();
+      }
     });
   });
 </script>
