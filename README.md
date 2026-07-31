@@ -4,12 +4,15 @@ A small floating companion that reacts in real time to [Claude Code](https://cla
 
 macOS (Apple Silicon) only for now.
 
-<p align="center">
-  <img src="assets/demo.gif" alt="Preview of Claude Pet's states" width="260">
-  <img src="assets/demo-hidden.gif" alt="Preview of Claude Pet's hidden mode" width="260">
-</p>
+**With the pet:**
 
-*(GIFs generated directly from `src/pet.html`, micro-animations included — not a real screen recording, but faithful to the actual rendering. The second one shows hidden mode: the character collapsed down to just the state badge and a skin-color dot.)*
+<p align="center"><img src="assets/demo.gif" alt="Preview of Claude Pet's states" width="260"></p>
+
+**Hidden mode** (character collapsed down to just the state badge and a skin-color dot):
+
+<p align="center"><img src="assets/demo-hidden.gif" alt="Preview of Claude Pet's hidden mode" width="260"></p>
+
+*(GIFs generated directly from `src/pet.html`, micro-animations included — not a real screen recording, but faithful to the actual rendering.)*
 
 ## Installation
 
