@@ -4,9 +4,12 @@ A small floating companion that reacts in real time to [Claude Code](https://cla
 
 macOS (Apple Silicon) only for now.
 
-<p align="center"><img src="assets/demo.gif" alt="Preview of Claude Pet's states" width="260"></p>
+<p align="center">
+  <img src="assets/demo.gif" alt="Preview of Claude Pet's states" width="260">
+  <img src="assets/demo-hidden.gif" alt="Preview of Claude Pet's hidden mode" width="260">
+</p>
 
-*(GIF generated directly from `src/pet.html`, micro-animations included — not a real screen recording, but faithful to the actual rendering.)*
+*(GIFs generated directly from `src/pet.html`, micro-animations included — not a real screen recording, but faithful to the actual rendering. The second one shows hidden mode: the character collapsed down to just the state badge and a skin-color dot.)*
 
 ## Installation
 
@@ -68,7 +71,9 @@ Removes only the hooks added by Claude Pet, closes any active windows, and delet
 
 - **One pet per conversation**: each `claude` session gets its own window, its own color (out of a palette of 6), positioned in a cascade so they don't overlap. Automatic closing (clean via `SessionEnd`, or via a safety net that checks every ~3s that the parent `claude` process is still alive) if the session ends, even abruptly.
 - **5 states**: idle (`SessionStart`, then again after a "done" left inactive), working (`UserPromptSubmit` then `PreToolUse` — stays active for the whole turn, no reverting to idle between two tools), waiting for confirmation (`PermissionRequest`), error (`PostToolUseFailure`), done (`Stop`).
-- **Click to find the terminal**: clicking the pet brings to the front the application (Terminal, iTerm, VS Code...) that launched this session.
+- **Click to find the terminal**: clicking the pet brings to the front the application (Terminal, iTerm, VS Code...) that launched this session. Drag anywhere on the character to reposition the window — works from the very first click, even before the window has focus.
+- **Click-through**: the window is frameless and transparent, but only the visible character/badge is actually clickable — clicks on the transparent margins around it pass straight through to whatever's behind the pet instead of being swallowed by the window.
+- **Resize and hide**: a gear (⚙) icon next to the state badge opens +/- buttons (resize the pet) and a toggle to collapse it down to just the state badge, plus a small color dot to tell sessions apart once the character's hidden. Both the size and hidden/visible choice are remembered globally for every future pet.
 - Pixel-art design made with Claude Design, implemented in plain SVG/CSS/JS (no rendering dependency).
 
 ## Project structure
