@@ -93,6 +93,8 @@ src/
 build/
   setup.py              # py2app config to compile src/pet_app.py
   build.sh               # build + zip → build/dist/Claude-Pet-macos-arm64.zip
+tools/
+  make_demo_gif.py        # regenerates assets/demo.gif and assets/demo-hidden.gif from src/pet.html
 ```
 
 To tweak the design (colors, shapes, state labels), everything happens in `src/pet.html` (the `STATES` object in JS, the SVG `<g data-only="...">` blocks). `pet.html` is copied as-is by `install.sh`, so there's no need to recompile for this file — just rerun `./install.sh`.
@@ -105,3 +107,13 @@ gh release create v0.x.0 build/dist/Claude-Pet-macos-arm64.zip --title "..." --n
 ```
 
 `install.sh` always downloads the **latest** release, so colleagues get the update on their next `git pull` + `./install.sh`.
+
+### Regenerating the demo GIFs
+
+The GIFs at the top of this README aren't screen recordings — `tools/make_demo_gif.py` drives a headless browser through `src/pet.html`'s own `window.setPetState(...)`/`setPetHidden(...)` and grabs a frame per step, so they always match the real rendering:
+
+```bash
+python3 -m venv /tmp/gifenv && /tmp/gifenv/bin/pip install playwright Pillow
+/tmp/gifenv/bin/python3 -m playwright install chromium
+/tmp/gifenv/bin/python3 tools/make_demo_gif.py   # overwrites assets/demo.gif and assets/demo-hidden.gif
+```
